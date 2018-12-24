@@ -12,7 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface WifiAuth : NSObject
 
 + (instancetype)sharedWifiAuth;
-- (void)startMonitoring;
+- (BOOL)startMonitoring;
 
 @end
 

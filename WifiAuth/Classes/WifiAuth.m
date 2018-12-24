@@ -6,14 +6,32 @@
 //
 
 #import "WifiAuth.h"
+
 #import <SystemConfiguration/SystemConfiguration.h>
+#import <sys/socket.h>
+#import <netinet/in.h>
+#import <netinet6/in6.h>
+#import <arpa/inet.h>
+#import <ifaddrs.h>
+#import <netdb.h>
 
 @interface WifiAuth()
 
 @property (nonatomic, assign) Boolean currentlyShownPopup;
 @property (nonatomic, assign) Boolean offeredToShowPopup;
 
+@property (nonatomic, assign) SCNetworkReachabilityRef  reachabilityRef;
+@property (nonatomic, strong) dispatch_queue_t          reachabilitySerialQueue;
+
+- (void)reachabilityChanged:(SCNetworkReachabilityFlags)flags;
+
 @end
+
+// Start listening for reachability notifications on the current run loop
+static void WAReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReachabilityFlags flags, void* info)
+{
+    [[WifiAuth sharedWifiAuth] reachabilityChanged:flags];
+}
 
 @implementation WifiAuth
 
@@ -24,16 +42,29 @@
     return sharedWifiAuth;
 }
 
-- (void)startMonitoring {
-    [NSTimer scheduledTimerWithTimeInterval:1.0
-                                     target:self
-                                   selector:@selector(checkForNetworkConnection)
-                                   userInfo:nil
-                                    repeats:YES];
+- (BOOL)startMonitoring {
+    struct sockaddr_in zeroAddress;
+    bzero(&zeroAddress, sizeof(zeroAddress));
+    zeroAddress.sin_len = sizeof(zeroAddress);
+    zeroAddress.sin_family = AF_INET;
+    SCNetworkReachabilityRef ref = SCNetworkReachabilityCreateWithAddress(kCFAllocatorDefault, (const struct sockaddr*)&zeroAddress);
+    self.reachabilityRef = ref;
+    
+    self.reachabilitySerialQueue = dispatch_queue_create("fx.krause.wifiauth", NULL);
+    
+    // Copped from Reachbility -startNotifier
+    SCNetworkReachabilityContext context = { 0, NULL, NULL, NULL, NULL };
+    if (SCNetworkReachabilitySetCallback(self.reachabilityRef, WAReachabilityCallback, &context)) {
+        // Set it as our reachability queue, which will retain the queue
+        return SCNetworkReachabilitySetDispatchQueue(self.reachabilityRef, self.reachabilitySerialQueue);
+    }
+    
+    return NO;
 }
 
-- (void)checkForNetworkConnection {
-    if (![self isInterventionRequired]) {
+- (void)reachabilityChanged:(SCNetworkReachabilityFlags)flags
+{
+    if (![self isInterventionRequiredWithFlags:flags]) {
         return;
     }
     if (self.currentlyShownPopup) {
@@ -49,7 +80,7 @@
     
     // Login here
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"WiFi Authentication needed"
-                                                                   message:@"Looks like the WiFi you're connected with, requires some sort of login. Open the login page now?"
+                                                                   message:@"Looks like the WiFi you're connected to requires some sort of login. Open the login page now?"
                                                             preferredStyle:UIAlertControllerStyleAlert];
     
     __weak __typeof(self) weakSelf = self;
@@ -78,19 +109,10 @@
 
 // Taken from https://github.com/tonymillion/Reachability
 // BSD licensed
-- (BOOL)isInterventionRequired
+- (BOOL)isInterventionRequiredWithFlags:(SCNetworkReachabilityFlags)flags
 {
-    SCNetworkReachabilityFlags flags;
-    id hostAddress = @"apple.com";
-    SCNetworkReachabilityRef reachabilityRef = SCNetworkReachabilityCreateWithAddress(kCFAllocatorDefault, (const struct sockaddr*)hostAddress);
-    
-    if (SCNetworkReachabilityGetFlags(reachabilityRef, &flags))
-    {
-        return ((flags & kSCNetworkReachabilityFlagsConnectionRequired) &&
-                (flags & kSCNetworkReachabilityFlagsInterventionRequired));
-    }
-    
-    return NO;
+    return (flags & kSCNetworkReachabilityFlagsConnectionRequired &&
+            flags & kSCNetworkReachabilityFlagsInterventionRequired);
 }
 
 @end
