@@ -15,10 +15,9 @@
 
 @implementation WFAViewController
 
-- (void)viewDidLoad
+- (void)viewDidAppear:(BOOL)animated
 {
-    [super viewDidLoad];
-	
+    [super viewDidAppear:animated];
     [[WifiAuth sharedWifiAuth] startMonitoring];
 }
 
