@@ -56,7 +56,14 @@ static void WAReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
     SCNetworkReachabilityContext context = { 0, NULL, NULL, NULL, NULL };
     if (SCNetworkReachabilitySetCallback(self.reachabilityRef, WAReachabilityCallback, &context)) {
         // Set it as our reachability queue, which will retain the queue
-        return SCNetworkReachabilitySetDispatchQueue(self.reachabilityRef, self.reachabilitySerialQueue);
+        if (SCNetworkReachabilitySetDispatchQueue(self.reachabilityRef, self.reachabilitySerialQueue)) {
+            // Perform initial observation.
+            SCNetworkReachabilityFlags flags;
+            if (SCNetworkReachabilityGetFlags(self.reachabilityRef, &flags)) {
+                [self reachabilityChanged:flags];
+            }
+            return YES;
+        }
     }
     
     return NO;
