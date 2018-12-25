@@ -7,6 +7,7 @@
 
 #import "WifiAuth.h"
 
+#import <SafariServices/SafariServices.h>
 #import <SystemConfiguration/SystemConfiguration.h>
 #import <sys/socket.h>
 #import <netinet/in.h>
@@ -90,12 +91,13 @@ static void WAReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
     UIAlertAction *yesAction = [UIAlertAction actionWithTitle:@"Open login page" style:UIAlertActionStyleDefault
                                                       handler:^(UIAlertAction * action) {
                                                           weakSelf.currentlyShowingAlert = NO;
-                                                          
-                                                          // TODO: replace with in-app browser
-                                                          // In-app browser allows us to detect once the WiFi connection is established
-                                                          // And show the `Done` button
-                                                          NSURL *urlToOpen = [NSURL URLWithString:@"http://captive.apple.com/hotspot-detect.html"];
-                                                          [[UIApplication sharedApplication] openURL:urlToOpen];
+                                                          NSURL *const url = [NSURL URLWithString:@"http://captive.apple.com/hotspot-detect.html"];
+                                                          if (@available(iOS 9.0, *)) {
+                                                              SFSafariViewController *const safariViewController = [[SFSafariViewController alloc] initWithURL:url];
+                                                              [[[[UIApplication sharedApplication] keyWindow] rootViewController] presentViewController:safariViewController animated:YES completion:nil];
+                                                          } else {
+                                                              [[UIApplication sharedApplication] openURL:url];
+                                                          }
                                                       }];
     UIAlertAction *noAction = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel
                                                      handler:^(UIAlertAction * action) {
