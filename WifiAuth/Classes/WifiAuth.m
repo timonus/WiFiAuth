@@ -23,7 +23,7 @@
 @property (nonatomic, assign) SCNetworkReachabilityRef reachabilityRef;
 @property (nonatomic, strong) dispatch_queue_t reachabilitySerialQueue;
 
-- (void)reachabilityChanged:(SCNetworkReachabilityFlags)flags;
+- (BOOL)reachabilityChanged:(SCNetworkReachabilityFlags)flags;
 
 @end
 
@@ -64,21 +64,27 @@ static void WAReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
     if (SCNetworkReachabilitySetCallback(self.reachabilityRef, WAReachabilityCallback, &context)) {
         // Set it as our reachability queue, which will retain the queue
         if (SCNetworkReachabilitySetDispatchQueue(self.reachabilityRef, self.reachabilitySerialQueue)) {
-            // Perform initial observation.
-            SCNetworkReachabilityFlags flags;
-            if (SCNetworkReachabilityGetFlags(self.reachabilityRef, &flags)) {
-                [self reachabilityChanged:flags];
-            }
+            [self tryShowPrompt];
             return YES;
         }
     }
     return NO;
 }
 
-- (void)reachabilityChanged:(SCNetworkReachabilityFlags)flags
+- (BOOL)tryShowPrompt
+{
+    // Perform initial observation.
+    SCNetworkReachabilityFlags flags;
+    if (SCNetworkReachabilityGetFlags(self.reachabilityRef, &flags)) {
+        return [self reachabilityChanged:flags];
+    }
+    return NO;
+}
+
+- (BOOL)reachabilityChanged:(SCNetworkReachabilityFlags)flags
 {
     if (self.currentlyShowingAlert || ![self isInterventionRequiredWithFlags:flags]) {
-        return;
+        return NO;
     }
     
     self.currentlyShowingAlert = YES;
@@ -109,6 +115,7 @@ static void WAReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
     
     [[[[UIApplication sharedApplication] keyWindow] rootViewController] presentViewController:alert animated:YES completion:nil];
 
+    return YES;
 }
 
 // Taken from https://github.com/tonymillion/Reachability

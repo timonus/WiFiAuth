@@ -14,7 +14,13 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init NS_UNAVAILABLE;
 
 + (instancetype)sharedWifiAuth;
+
+/// Continuously observes network changes and prompts if needed.
 - (BOOL)startMonitoring;
+
+/// Checks the current network state and prompts if needed.
+/// Returns YES if a prompt was shown.
+- (BOOL)tryShowPrompt;
 
 @end
 
