@@ -11,6 +11,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface WifiAuth : NSObject
 
+- (instancetype)init NS_UNAVAILABLE;
+
 + (instancetype)sharedWifiAuth;
 - (BOOL)startMonitoring;
 
